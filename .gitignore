@@ -1,0 +1,21 @@
+# Private media: never commit videos, audio, or frames/crops cut from them
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.m4a
+*.mp3
+*.wav
+*.opus
+media/
+gates/clips/
+gates/cache/
+gates/out/
+
+# Secrets
+.env
+.env.*
+
+# Caches
+__pycache__/
+*.pyc
