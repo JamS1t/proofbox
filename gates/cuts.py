@@ -8,6 +8,7 @@
     python gates/cuts.py clip.mp4 gates/out/<clip>_tracks.json
 """
 import json
+import subprocess
 import sys
 
 import cv2
@@ -21,19 +22,21 @@ GAP_S = 4         # out of view this long or longer = continuity warning
 
 
 def frame_diffs(video):
-    """Mean grey difference between consecutive frames, with each frame's time in seconds."""
-    cap, prev, d, ts = cv2.VideoCapture(str(video)), None, [], []
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30
-    while True:
-        ok, fr = cap.read()
-        if not ok:
-            break
-        g = cv2.cvtColor(cv2.resize(fr, (160, max(1, 160 * fr.shape[0] // fr.shape[1]))),
-                         cv2.COLOR_BGR2GRAY).astype(np.float32)
-        d.append(0.0 if prev is None else float(np.abs(g - prev).mean()))
-        ts.append(cap.get(cv2.CAP_PROP_POS_MSEC) / 1000 or len(ts) / fps)
-        prev = g
-    return np.array(d), ts
+    """Mean grey difference between consecutive frames at the full frame rate, with each frame's time (s).
+    ffmpeg decodes straight to 160 px grey frames, which is much faster than full-size OpenCV frames."""
+    cap = cv2.VideoCapture(str(video))
+    fps, w, h = cap.get(cv2.CAP_PROP_FPS) or 30, cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    cap.release()
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream_side_data=rotation", "-of", "csv=p=0", str(video)], capture_output=True, text=True).stdout
+    if probe.strip().lstrip("-") in ("90", "270"):
+        w, h = h, w  # ffmpeg auto-rotates portrait phone video
+    gh = max(2, int(160 * h / w) // 2 * 2)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-an", "-vf", f"scale=160:{gh},format=gray",
+                          "-vsync", "passthrough", "-f", "rawvideo", "-"], capture_output=True, check=True).stdout
+    g = np.frombuffer(raw, np.uint8).reshape(-1, gh, 160).astype(np.float32)
+    d = np.concatenate([[0.0], np.abs(np.diff(g, axis=0)).mean(axis=(1, 2))]) if len(g) else np.array([])
+    return d, [i / fps for i in range(len(d))]
 
 
 def hard_cuts(d, ts):

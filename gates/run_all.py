@@ -132,6 +132,8 @@ def main():
     ap.add_argument("--out", default=HERE / "RESULTS.md")
     ap.add_argument("--fps", type=int, default=track.FPS)
     ap.add_argument("--only", default="", help="comma-separated row IDs, e.g. G1,G2,G3")
+    ap.add_argument("--exact", action="store_true", help="--only names exact clips (G1 without G1_b)")
+    ap.add_argument("--outdir", default=HERE / "out", help="per-clip facts and crops")
     a = ap.parse_args()
 
     key = {r["file"]: r for r in csv.DictReader(open(a.key, newline="", encoding="utf-8"))}
@@ -142,21 +144,22 @@ def main():
     runs = []
     for c in sorted(p for p in clips_dir.iterdir() if p.suffix.lower() in VIDEO):
         b = base_of(c.stem)
-        if b and b in key and (not only or b in only):
+        if b and b in key and (not only or (c.stem if a.exact else b) in only):
             runs.append((c, key[b]))
         elif not b and not re.fullmatch(r"[GUP]\d[ab]", c.stem):
             print(f"skip {c.name}: not a clip ID")
 
     spend0, rows = spent(), []
-    (HERE / "out").mkdir(exist_ok=True)
+    outdir = Path(a.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
     for clip, row in runs:
         kit = kits[row["kit"]]
         items = [i for i in kit["items"] if i["status"] != "optional"]
         print(f"{clip.name}: {row['mode']} {row['kit']} -> expect {row['expected']}", flush=True)
-        out = HERE / "out" / f"{clip.stem}.json"
+        out = outdir / f"{clip.stem}.json"
         t0 = time.perf_counter()
         try:
-            f = facts_for(clip, row, kit, a.fps)
+            f = facts_for(clip, row, kit, a.fps, out=outdir)
             got, reasons, notes = rules.verdict(row["mode"], items, kit["label"], f)
             secs = round(time.perf_counter() - t0, 1)
             first = json.loads(out.read_text()).get("first_run_s", secs) if out.exists() else secs

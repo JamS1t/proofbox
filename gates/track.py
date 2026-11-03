@@ -68,7 +68,8 @@ def parse(text):
 
 
 def sam_video(file_id, concept, frames):
-    stream = client().responses.create(model=SAM_MODEL, stream=True, input=[{
+    # one_bit masks: same boxes, ~50x less text to stream (box on G1: 21 s vs 3.5 min)
+    stream = client().responses.create(model=SAM_MODEL, stream=True, metadata={"mask_encoding": "one_bit"}, input=[{
         "type": "message", "role": "user",
         "content": [{"type": "input_text", "text": concept}, {"type": "input_video", "file_id": file_id}]}])
     deltas, final = [], None

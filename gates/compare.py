@@ -86,7 +86,7 @@ def opened_at(t, items):
     return min((min(r[0] for r in t["tracks"][c]) for c in items if t["tracks"].get(c)), default=t["frames"] // 2)
 
 
-def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=3):
+def gather(t, src, concepts, items, k=3, n_box=6, n_end=3, n_after=3):
     """One pass over the video. Per concept (items: box around all copies, others: biggest box): sharpest crop
     (Laplacian variance) in each of k equal slices of its visible frames. Plus closed-box frames before any item
     appears, the last frames, and whole frames after opening."""
@@ -101,14 +101,15 @@ def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=3):
     cap, scale, timed = source(t, src)
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     best, full, done, i = {}, {}, set(), -1
-    while True:
-        ok, fr = cap.read()
-        if not ok:
-            break
+    need = set(slot_f for (_, slot_f) in slot) | set(pre) | set(end) | set(after) | {n - 1}
+    while cap.grab():  # decode every frame, but only convert the ones we use
         i += 1
         ms = cap.get(cv2.CAP_PROP_POS_MSEC) if timed else 0
         f = round(ms * fps / 1000) if ms else (round(i * fps / src_fps) if timed else i)  # prepped frame index
-        if f in done:
+        if f in done or (f not in need and f < n - 1):
+            continue
+        ok, fr = cap.retrieve()
+        if not ok:
             continue
         done.add(f)
         for c, boxes in per.items():
@@ -122,7 +123,7 @@ def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=3):
                     if s not in best or sharp > best[s][0]:
                         best[s] = (sharp, jpg(crop, 1024))
         if f in pre or f in end or f in after or f >= n - 1:
-            full[f] = jpg(fr, 1024)
+            full[f] = jpg(fr, 768)
     cap.release()
     end = [x if x in full else max(full, default=x) for x in end]  # frame count can be off by one
     crops = {c: [best[(c, j)][1] for j in range(k) if (c, j) in best] for c in concepts}
