@@ -15,7 +15,8 @@ SIDES_MIN = 4
 def verdict(mode, items, label, f):
     """Returns (headline, reasons, notes). Headline = first reason: FAIL > FLAG > WARN, else PASS."""
     got = f["items"]
-    present = {i["name"] for i in items if got[i["name"]]["seen_s"] >= MIN_SEEN_S and got[i["name"]]["same_kind"]}
+    present = {i["name"] for i in items if (got[i["name"]]["seen_s"] >= MIN_SEEN_S and got[i["name"]]["same_kind"])
+               or got[i["name"]].get("seen_in_frames")}  # SAM can miss e.g. a coiled cable; Spark still sees it
     req = [i for i in items if i["status"] == "required"]
     fails, flags, warns, notes = [], [], [], []
     if not any(i["name"] in present for i in req):
@@ -25,7 +26,8 @@ def verdict(mode, items, label, f):
     elif any(i["name"] not in present for i in req):
         fails.append("missing item")
         notes += [f"missing: {i['name']}" for i in req if i["name"] not in present]
-    short = [i for i in req if i["name"] in present and got[i["name"]]["count"] < i["qty"]]
+    short = [i for i in req if i["name"] in present and got[i["name"]]["seen_s"] >= MIN_SEEN_S
+             and got[i["name"]]["count"] < i["qty"]]
     if short:
         fails.append("quantity")
         notes += [f"{i['name']}: {got[i['name']]['count']} of {i['qty']}" for i in short]

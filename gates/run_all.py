@@ -75,7 +75,7 @@ def facts_for(clip, row, kit, fps, out=HERE / "out", progress=lambda stage: None
     Path(out).mkdir(parents=True, exist_ok=True)
     (Path(out) / f"{Path(clip).stem}_tracks.json").write_text(json.dumps(t))
     progress("Checking rules")
-    c = cuts.cuts(t, clip, [CONTAINER] + nouns, skip=LABEL_NOUNS)
+    c = cuts.cuts(t, clip, [CONTAINER] + nouns, skip=LABEL_NOUNS, mode=row["mode"])
     sp = compare.compare(t, clip, row["mode"], kit, items, label, save_dir=Path(out) / Path(clip).stem)
     seen = lambda k: len({r[0] for r in t["tracks"].get(k, [])}) / fps  # noqa: E731
     at_once = lambda k: max(Counter(r[0] for r in t["tracks"].get(k, [])).values(), default=0)  # noqa: E731
@@ -87,7 +87,7 @@ def facts_for(clip, row, kit, fps, out=HERE / "out", progress=lambda stage: None
                                "same_kind": s.get("same_kind", False), "spec_check": s.get("spec_check", "not_verifiable"),
                                "spec_note": s.get("spec_note", ""), "printed_text": s.get("printed_text", ""),
                                "screen_state": s.get("screen_state", "none"), "power_test": s.get("power_test", "not_tried"),
-                               "item_type": s.get("item_type", "")}
+                               "item_type": s.get("item_type", ""), "seen_in_frames": s.get("seen_in_frames", False)}
     return {"duration": round(track.probe(clip)["duration"], 1), "size_mb": round(os.path.getsize(clip) / 1e6, 1),
             **c, "label_noun": label, "label_code": sp["label_code"], "label_readable": sp["label_readable"],
             "seal_visible": sp["seal_visible"], "sides_seen": sp["box_sides_seen"], "found_instead": sp["found_instead"],

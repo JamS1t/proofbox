@@ -3,7 +3,9 @@
 
 - hard cuts: one-frame spikes in frame difference, on the ORIGINAL video at its full frame rate (no API)
 - jump cuts: objects of 2+ concepts jump together in the SAM tracks (the scene moved = a cut)
-- continuity: the box or an ordered item is out of view 4+ s with no cut (any instance counts, never track IDs)
+- continuity (out of view 4+ s with no cut; any instance counts, never track IDs):
+  buyer: the box, until it is opened (first half of the clip) - proves the contents came out of this parcel
+  seller: the box, and each item between sightings - proves nothing was swapped before it went in
 
     python gates/cuts.py clip.mp4 gates/out/<clip>_tracks.json
 """
@@ -71,19 +73,20 @@ def jump_cuts(tracks, fps, w, h, skip=(), still=None):
             if len({c for c, _ in objs}) >= 2 and (still is None or still(f / fps))]
 
 
-def continuity(tracks, fps, concepts, cuts):
-    """Out-of-view stretches of GAP_S+ seconds between two sightings, unless a cut explains them."""
+def continuity(tracks, fps, concepts, cuts, until=None):
+    """Out-of-view stretches of GAP_S+ seconds between two sightings, unless a cut explains them.
+    until (seconds): only stretches that start before then count."""
     out = []
     for c in concepts:
         fs = sorted({r[0] for r in tracks.get(c, [])})
         for a, b in zip(fs, fs[1:]):
             ta, tb = a / fps, b / fps
-            if tb - ta >= GAP_S and not any(ta <= x <= tb for x in cuts):
+            if tb - ta >= GAP_S and not any(ta <= x <= tb for x in cuts) and (until is None or ta < until):
                 out.append(f"{c} out of view {ta:.1f}-{tb:.1f}s")
     return out
 
 
-def cuts(t, src, concepts, skip=()):
+def cuts(t, src, concepts, skip=(), mode="seller"):
     d, ts = frame_diffs(src)
     hc = hard_cuts(d, ts)
     rate = len(ts) / ts[-1] if len(ts) > 1 and ts[-1] else 30
@@ -92,7 +95,11 @@ def cuts(t, src, concepts, skip=()):
         a, b = int((sec - 1 / t["fps"]) * rate), int(sec * rate) + 1
         return float(np.mean(d[max(0, a):max(a + 1, b)])) < CUT_MIN
     jc = jump_cuts(t["tracks"], t["fps"], t["w"], t["h"], skip, still)
-    return {"hard_cuts": hc, "jump_cuts": jc, "continuity": continuity(t["tracks"], t["fps"], concepts, hc + jc)}
+    if mode == "buyer":  # only the box matters, and only until it is opened (first half of the clip)
+        cont = continuity(t["tracks"], t["fps"], concepts[:1], hc + jc, until=t["frames"] / t["fps"] / 2)
+    else:
+        cont = continuity(t["tracks"], t["fps"], concepts, hc + jc)
+    return {"hard_cuts": hc, "jump_cuts": jc, "continuity": cont}
 
 
 def _selftest():

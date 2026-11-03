@@ -21,10 +21,11 @@ USD_IN = float(os.environ.get("SPARK_USD_IN", "1.00")) / 1e6
 USD_OUT = float(os.environ.get("SPARK_USD_OUT", "4.00")) / 1e6
 
 ITEM = {"type": "object", "additionalProperties": False,
-        "required": ["name", "item_type", "same_kind", "printed_text", "spec_check", "spec_note", "count_visible",
-                     "screen_state", "power_test", "confidence"],
+        "required": ["name", "item_type", "same_kind", "seen_in_frames", "printed_text", "spec_check", "spec_note",
+                     "count_visible", "screen_state", "power_test", "confidence"],
         "properties": {
             "name": {"type": "string"}, "item_type": {"type": "string"}, "same_kind": {"type": "boolean"},
+            "seen_in_frames": {"type": "boolean"},
             "printed_text": {"type": "string"},
             "spec_check": {"type": "string", "enum": ["match", "mismatch", "not_verifiable"]},
             "spec_note": {"type": "string"}, "count_visible": {"type": "integer"},
@@ -51,6 +52,8 @@ Return one entry in `items` per KIT ITEM, in the order given, with `name` exactl
   a board game is not a router). Crops come from separate tracked objects; a picture of the item printed on
   packaging (the router photo on its own box) is NOT the item. same_kind=true only if at least one crop shows
   the physical item itself. No crops -> same_kind=false.
+- seen_in_frames: the physical item is clearly visible in the WHOLE FRAMES AFTER OPENING (false if none given or
+  you are not sure; e.g. a coiled white cable in someone's hand counts as an ethernet cable only if it clearly is one).
 - printed_text: text printed on the item itself that you can read in the crops (model, GB, V/A, nm); '' if none.
 - spec_check: printed_text vs the order's specs. match; mismatch = clear conflict (e.g. OUTPUT 9V 0.6A when the
   order is a 12V 3A adapter); not_verifiable = the spec is not printed or not readable. spec_note: short reason.
@@ -59,7 +62,8 @@ Return one entry in `items` per KIT ITEM, in the order given, with `name` exactl
   display stays blank; not_tried otherwise.
 label_code: the large 6-character code on the shipping label exactly as printed ('' if no label is readable).
 label_readable: a label is visible and its code can be read.
-found_instead: when kit items have no crops, name what the WHOLE FRAMES AFTER OPENING show; '' otherwise.
+found_instead: when no kit item is in the crops or the whole frames, name what the WHOLE FRAMES AFTER OPENING
+show; '' otherwise.
 box_sides_seen: distinct outer sides (0-6) shown while the box is still CLOSED, across the box frames from the
 first half of the video (ignore frames where it is already open); 0 if none given.
 seal_visible: the last frames show the package closed and sealed with tape, false if none given.
@@ -106,18 +110,17 @@ def slots_for(rows, k=3):
     return split(top[0], k - len(top) + 1) + top[1:] if top else []
 
 
-def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=3):
+def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=6):
     """One pass over the video. Sharpest crop (Laplacian variance) per slot: kit items get one slot per tracked
     object, other concepts (the label) k time slices of their biggest box. Plus box frames from the first half
     of the clip (for the sides), the last frames, and whole frames after opening."""
     slots = {c: slots_for(t["tracks"].get(c, []), k) if c in items else split(biggest(t["tracks"].get(c, [])), k)
              for c in concepts}
     n, fps = t["frames"], t["fps"]
-    opened = opened_at(t, items)
     early = [f for f in t["box_frames"] if f < n // 2] or list(range(n // 2))
     pre = sorted({early[i * len(early) // n_box] for i in range(n_box)}) if early else []
     end = sorted({max(0, n - 1 - i * fps) for i in range(n_end)})
-    after = sorted({opened + (n - opened) * (i + 1) // (n_after + 1) for i in range(n_after)})
+    after = sorted({int(n * (0.4 + 0.6 * (i + 0.5) / n_after)) for i in range(n_after)})  # items come out late
     cap, scale, timed = source(t, src)
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     best, full, done, i = {}, {}, set(), -1
@@ -185,8 +188,8 @@ def compare(t, src, mode, kit, items, label, save_dir=None):
     add("SHIPPING LABEL crops:" if crops[label] else "SHIPPING LABEL: not found by the tracker.", crops[label])
     add("BOX in the first half of the video, frames in time order:" if mode == "buyer" else "LAST FRAMES of the packing video:",
         pre if mode == "buyer" else end)
-    if not any(crops[i["noun"]] for i in items if i["status"] == "required"):
-        add("WHOLE FRAMES AFTER OPENING (no kit item was found):", after)
+    if any(not crops[i["noun"]] for i in items):  # the tracker missed something: let Spark look at whole frames
+        add("WHOLE FRAMES AFTER OPENING (the tracker missed at least one kit item):", after)
 
     if save_dir:
         Path(save_dir).mkdir(parents=True, exist_ok=True)
