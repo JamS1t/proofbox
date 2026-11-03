@@ -1,21 +1,22 @@
-file,mode,order,actual,expected
-G1,buyer,router,router kit full,PASS
-G2,buyer,router,Scrabble board inside,FAIL wrong item
-G3,buyer,router,router kit full; recorded as G3a + G3b,FAIL cut
-U1,buyer,multitester,multitester kit full; switched on,PASS
-U2,buyer,router,router kit; its adapter swapped for the 12V 3A adapter,FAIL mismatch (spec)
-U3,buyer,multitester,multitester kit; probes left out,FAIL missing item
-U4,buyer,orangepi,10A relay module inside,FAIL wrong item
-U5,buyer,usb,usb kit full; opened without showing the sides,FAIL rule sides
-U6,buyer,orangepi,orangepi kit full; label covered by hand,FAIL rule label
-U7,buyer,router,router kit; adapter left out,FAIL missing item
-U8,buyer,multitester,multitester kit; battery removed; blank screen,FLAG power test no display
-P1,seller,orangepi,orangepi kit full; sealed,PASS
-P2,seller,uvlight,uvlight kit; USB cable left out,FAIL missing item
-P3,seller,adapter,router's adapter packed instead of the 12V 3A,FAIL mismatch (spec)
-P4,seller,multitester,multitester kit; only the red probe packed,FAIL quantity
-P5,seller,usb,usb kit full; sealed,PASS (tiny item)
-P6,seller,router,router kit full; never sealed,FAIL rule seal
-P7,seller,orangepi,orangepi kit full; board leaves the frame 5 s before going in,WARN continuity
-P8,seller,router,router kit full; runs past 60 s,FAIL rule length
-P9,seller,multitester,multitester powered on with a reading; then packed,PASS tested working
+file,mode,kit,label,in_box,do,expected
+G1,buyer,router,TUB2JN,router + power adapter + LAN cable,"Unbox: sides, label, open, hold each item 2 s",PASS
+G2,buyer,router,TUB2JN,Scrabble board only,Unbox like G1; take out the Scrabble board,FAIL wrong item
+G3,buyer,router,TUB2JN,router + power adapter + LAN cable,Recorded as G3a + G3b (see those rows),FAIL cut
+U1,buyer,multitester,6DVME7,meter (battery in) + red + black test leads,"Unbox; both leads together 2 s; switch on, show a reading 10 s",PASS
+U2,buyer,router,TUB2JN,router + the 12V 3A adapter + LAN cable,Unbox; hold the adapter's printed OUTPUT to the camera 3 s,FAIL mismatch (wrong adapter)
+U3,buyer,multitester,6DVME7,meter only (no test leads),"Unbox; switch on, show a reading",FAIL missing item
+U4,buyer,orangepi,TUB2JX,relay module only,Unbox; take out the relay module,FAIL wrong item
+U5,buyer,usb,5EECYY,USB drive,"Label 2 s, then open straight away WITHOUT turning the box",FAIL rule sides
+U6,buyer,orangepi,TUB2JX,"Orange Pi board (+ its box, cable)",Hand covers the label the whole time,FAIL rule label
+U7,buyer,router,TUB2JN,router + LAN cable (no adapter),Unbox normally,FAIL missing item
+U8,buyer,multitester,6DVME7,meter (battery REMOVED) + red + black leads,Unbox; press power / turn the dial close to the camera; blank screen 3 s,FLAG power test inconclusive (batteries not included per listing)
+U9,buyer,orangepi,TUB2JN,"Orange Pi board (+ its box, cable)",Router's spare label TUB2JN on the box; unbox normally,FAIL label mismatch
+P1,seller,orangepi,TUB2JX,"Orange Pi board (+ its box, cable)",Label 2 s; show each item 2 s; pack; tape; close-up,PASS
+P2,seller,uvlight,KQWMTM,flashlight only (no Type-C cable),Pack; tape; close-up,FAIL missing item
+P3,seller,adapter,TUB2JU,the ROUTER's adapter (not the 12V 3A),Hold its printed OUTPUT to the camera 3 s; pack; tape,FAIL mismatch (wrong adapter)
+P4,seller,multitester,6DVME7,meter + RED test lead only,Pack; tape; close-up,FAIL quantity (1 of 2)
+P5,seller,usb,5EECYY,USB drive,Hold the drive close to the camera 3 s; pack; tape,PASS (tiny item)
+P6,seller,router,TUB2JN,router + power adapter + LAN cable,Pack; close the flaps; NO tape,FAIL rule seal
+P7,seller,orangepi,TUB2JX,"Orange Pi board (+ its box, cable)","Carry the board OUT of frame 5 s, bring it back, pack; tape (no cut)",WARN continuity
+P8,seller,router,TUB2JN,router + power adapter + LAN cable,Pack slowly; run about 75 s,FAIL rule length
+P9,seller,multitester,6DVME7,meter (battery in) + red + black leads,"Switch on, show a reading 5 s; pack; tape",PASS tested working

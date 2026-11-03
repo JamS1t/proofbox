@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common.meta_client import SAM_MODEL, client  # noqa: E402
 from cache import DIR, cached, file_sha, key  # noqa: E402
 
-FPS = 10
+FPS = 5
 USD_PER_FRAME = 0.20 / 1000  # SAM video, 50-frame minimum per request
 OUT = Path(__file__).resolve().parent / "out"
 HEADER = re.compile(r"^<(\d+)f(?:;[^>]*)?>(.*)$")

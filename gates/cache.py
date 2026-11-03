@@ -9,7 +9,7 @@ from pathlib import Path
 
 DIR = Path(__file__).resolve().parent / "cache"
 LEDGER = DIR / "spend.jsonl"
-BUDGET = float(os.environ.get("PROOFBOX_BUDGET", "2.00"))
+BUDGET = float(os.environ.get("PROOFBOX_BUDGET", "10.00"))
 
 
 def key(*parts):
