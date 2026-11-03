@@ -28,10 +28,10 @@ def verdict(mode, want, oid, f):
     else:
         if set(want) - present:
             fails.append("missing item")
-        if any(not items[n]["matches_listing"] for n in present):
-            fails.append("mismatch")
         if any(items[n]["count"] < q for n, q in want.items() if n in present):
             fails.append("quantity")
+        if any(not items[n]["matches_listing"] for n in present):
+            fails.append("mismatch")
     if f["hard_cuts"] or f["jump_cuts"]:
         fails.append("cut")
     if f["duration"] > MAX_S:
@@ -68,7 +68,7 @@ def _selftest():
     gone = dict(ok, seen_s=0)
     assert verdict("buyer", want, "", dict(base, items={"router": ok, "adapter": gone}))[0] == "FAIL missing item"
     assert verdict("buyer", want, "", dict(base, items={"router": gone, "adapter": gone}))[0] == "FAIL wrong item"
-    assert verdict("seller", {"stand": 2}, "", dict(base, items={"stand": ok}))[0] == "FAIL quantity"
+    assert verdict("seller", {"test lead": 2}, "", dict(base, items={"test lead": ok}))[0] == "FAIL quantity"
     assert verdict("buyer", want, "", dict(base, jump_cuts=[3.0]))[0] == "FAIL cut"
     assert verdict("seller", want, "", dict(base, continuity=["x"]))[0] == "WARN continuity"
     blank = dict(ok, screen_state="off")

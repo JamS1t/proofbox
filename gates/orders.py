@@ -15,10 +15,9 @@ from compare import MIME, image, spark
 
 HERE = Path(__file__).resolve().parent
 SHOTS, KITS = HERE / "orders", HERE / "kits.json"
-HINT = {"router": "TP-Link TL-WR840N", "orangepi": "Orange Pi One 1GB", "multitester": "ANENG SZ305",
+HINT = {"router": "TP-Link TL-WR840N", "orangepi": "Orange Pi One 1GB", "multitester": "ANENG SZ305 (its 2 test leads, red + black, are one item: test lead, qty 2)",
         "usb": "SanDisk Ultra Luxe 32GB", "adapter": "DC 12V 3A power adapter",
-        "uvlight": "Alonefire SV98 UV flashlight (listing packing list: flashlight + USB cable)",
-        "stand": "aluminium laptop stand, black, sold as a pair"}
+        "uvlight": "Alonefire SV98 UV flashlight (listing packing list: flashlight + USB cable)"}
 
 KIT_ITEM = {"type": "object", "additionalProperties": False,
             "required": ["name", "qty", "sam_noun", "spec", "checked"],
@@ -33,7 +32,7 @@ PROMPT = """These screenshots show one marketplace order: {hint}. Return:
 - items: everything the buyer should find in the parcel, from "package includes" / "packing list" /
   "in the box" (if there is no list, just the product). One entry per distinct item:
   name (short), qty (a "pair" = 2), sam_noun (1-2 generic English words a segmentation model can find,
-  e.g. router, power adapter, cable, multimeter, test lead, flashlight, laptop stand, usb drive, circuit board),
+  e.g. router, power adapter, cable, multimeter, test lead, flashlight, usb drive, circuit board),
   spec (printed rating/model/colour/capacity to check on the item, e.g. "9V 0.6A", "32GB", "black"; '' if none),
   checked (false for manuals, cards, warranty slips, stickers, and batteries installed inside the product)."""
 

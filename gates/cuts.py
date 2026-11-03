@@ -94,7 +94,7 @@ def _selftest():
     a = [[0, 1, 0, 0, 10, 10, None], [1, 1, 500, 500, 510, 510, None]]
     b = [[0, 2, 600, 900, 610, 910, None], [1, 2, 0, 0, 10, 10, None]]
     assert jump_cuts({"router": a}, 10, 720, 1280) == []
-    assert jump_cuts({"stand": a + [[r[0], 9] + r[2:] for r in b]}, 10, 720, 1280) == []  # pair swapping IDs
+    assert jump_cuts({"test lead": a + [[r[0], 9] + r[2:] for r in b]}, 10, 720, 1280) == []  # pair swapping IDs
     assert jump_cuts({"router": a, "box": b}, 10, 720, 1280) == [0.1]
     board = [[f, 3, 650, 600, 719, 700, None] for f in range(10)] + [[f, 3, 300, 600, 400, 700, None] for f in range(60, 70)]
     box = [[f, 1, 100, 100, 600, 900, None] for f in range(70)]

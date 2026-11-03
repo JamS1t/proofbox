@@ -13,7 +13,7 @@ U8,buyer,multitester,multitester kit; battery removed; blank screen,FLAG power t
 P1,seller,orangepi,orangepi kit full; sealed,PASS
 P2,seller,uvlight,uvlight kit; USB cable left out,FAIL missing item
 P3,seller,adapter,router's adapter packed instead of the 12V 3A,FAIL mismatch (spec)
-P4,seller,stand,only 1 of the pair packed,FAIL quantity
+P4,seller,multitester,multitester kit; only the red probe packed,FAIL quantity
 P5,seller,usb,usb kit full; sealed,PASS (tiny item)
 P6,seller,router,router kit full; never sealed,FAIL rule seal
 P7,seller,orangepi,orangepi kit full; board leaves the frame 5 s before going in,WARN continuity

@@ -52,7 +52,8 @@ Return one entry in `items` per KIT ITEM, in the order given, with `name` exactl
   same_kind (that is a mismatch); a different product is not (a relay module is not a single-board computer,
   a board game is not a router). No crops -> same_kind=false, matches_listing=false.
 - matches_listing: model, colour and any printed rating or capacity visible on the item (volts, amps, GB)
-  match the kit spec and the order screenshots. A visible rating that differs -> false.
+  match the kit spec and the order screenshots. A visible rating that differs -> false. Fewer copies than
+  the kit qty is not a mismatch (quantity is checked separately).
 - attributes: colour; count = how many of this item are visible at once; model_variant = model/rating text on it.
 - mismatches: short reasons it differs; empty if it matches.
 - screen_state: only for items with a digital display (LCD digits; status LEDs don't count): on if any crop

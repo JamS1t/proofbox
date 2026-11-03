@@ -8,11 +8,10 @@ Answer key: `gates/answer_key.csv` (same rows). If an item is missing, swap in a
 |---|---|---|
 | router | TP-Link TL-WR840N | read from screenshots |
 | orangepi | Orange Pi One 1GB | read from screenshots |
-| multitester | ANENG SZ305 | read from screenshots |
+| multitester | ANENG SZ305 | read from screenshots; must list 2 test leads (red + black) as qty 2 |
 | usb | SanDisk Ultra Luxe 32GB | read from screenshots |
 | adapter | DC 12V 3A power adapter | read from screenshots |
 | uvlight | Alonefire SV98 UV flashlight | flashlight + USB cable (listing packing list) |
-| stand | Aluminium laptop stand, black | a pair = 2 |
 
 Props (photos only, no order): Scrabble board, 10A relay module.
 
@@ -36,6 +35,8 @@ Props (photos only, no order): Scrabble board, 10A relay module.
   2. Hold each item to the camera for 2 s, ratings facing the lens.
   3. Pack, close and tape the box.
   4. End on a 2 s close-up of the taped box.
+- **Multitester test leads:** hold the red and black leads together in frame for 2 s; the count check needs both
+  visible at once.
 - **Multitester (buyer):** switch it on and keep a reading on screen for 10 s or more. A buyer's multitester that never
   lights up is flagged.
 - Break only the one thing the row asks for. A clip that breaks two rules reports the more serious one first.
@@ -58,7 +59,7 @@ Props (photos only, no order): Scrabble board, 10A relay module.
 | P1 | seller | orangepi | full kit, sealed | PASS |
 | P2 (+P2_b) | seller | uvlight | flashlight only, USB cable left out | FAIL missing item |
 | P3 | seller | adapter | pack the router's adapter instead of the 12V 3A; show its sticker | FAIL mismatch (spec) |
-| P4 | seller | stand | only 1 stand of the pair | FAIL quantity |
+| P4 | seller | multitester | multitester + only the red probe (black left out) | FAIL quantity |
 | P5 (+P5_b) | seller | usb | full kit, sealed; hold the tiny drive close to the camera | PASS (tiny item) |
 | P6 | seller | router | full kit, flaps closed but no tape | FAIL rule seal |
 | P7 | seller | orangepi | full kit, no cut; carry the board out of the frame for 5 s, bring it back, pack it | WARN continuity |

@@ -20,8 +20,8 @@ Filming and clip list: FILMING.md. Answer key: gates/answer_key.csv.
 |---|---|
 | FAIL wrong item | No kit item both tracked >= 1 s by SAM and judged `same_kind` by Spark |
 | FAIL missing item | Some kit items present, others not |
+| FAIL quantity | Most copies SAM sees at once < kit qty (e.g. 1 of 2 test leads) |
 | FAIL mismatch | Present item with Spark `matches_listing=false` (model, colour, printed rating vs kit spec + screenshots) |
-| FAIL quantity | Most copies SAM sees at once < kit qty |
 | FAIL cut | Hard cut or jump cut |
 | FAIL rule length / size | Duration > 60 s / file > 30 MB |
 | FAIL rule label | Spark's `label_text` doesn't contain the order's 6 digits (readability only if no Order ID) |
