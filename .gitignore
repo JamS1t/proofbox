@@ -29,3 +29,4 @@ __pycache__/
 app/uploads/
 app/results/
 app/samples/
+gates/out*/
