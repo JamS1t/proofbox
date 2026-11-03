@@ -31,6 +31,16 @@ CONTAINER = "box"
 LABEL_NOUNS = ("shipping label", "label", "paper")  # tried in order until one finds the label
 VIDEO = (".mp4", ".mov")
 # both parts onto one 1080p landscape frame (a portrait part gets side bars), so mixed takes still join
+TARGET_MB = 27  # under the 30 MB rule with room for audio and container overhead
+
+
+def size_args(seconds):
+    """H.264 settings that keep a clip under 30 MB, the way marketplace apps compress uploads."""
+    kbps = int(min(4500, TARGET_MB * 8000 / max(seconds, 1) - 96))
+    return ["-c:v", "libx264", "-preset", "medium", "-b:v", f"{kbps}k", "-maxrate", f"{int(kbps * 1.3)}k",
+            "-bufsize", f"{kbps * 2}k", "-pix_fmt", "yuv420p"]
+
+
 FIT = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"
 
 
@@ -46,8 +56,8 @@ def join_parts(clips, rows):
         out = clips / f"{r}.mp4"
         if all(parts) and not out.exists():
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(parts[0]), "-i", str(parts[1]), "-filter_complex",
-                            f"[0:v]{FIT}[a];[1:v]{FIT}[b];[a][b]concat=n=2:v=1:a=0", "-c:v", "libx264", "-crf", "20",
-                            "-pix_fmt", "yuv420p", str(out)], check=True)
+                            f"[0:v]{FIT}[a];[1:v]{FIT}[b];[a][b]concat=n=2:v=1:a=0",
+                            *size_args(sum(track.probe(p)["duration"] for p in parts)), str(out)], check=True)
             print(f"joined {parts[0].name} + {parts[1].name} -> {out.name}")
 
 

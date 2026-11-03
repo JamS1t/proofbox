@@ -5,7 +5,7 @@ is unclear, the next ID in filming order is used. Prints the mapping; --apply co
 gates/clips/<ID>.mp4 (raw files are kept) and joins G3a + G3b into G3.mp4.
 
     python gates/intake.py            # show the mapping only
-    python gates/intake.py --apply
+    python gates/intake.py --apply [--only G2,G2_b]   # compressed copies under 30 MB; a later retake wins
 """
 import re
 import shutil
@@ -95,10 +95,14 @@ if __name__ == "__main__":
         dup = " DUPLICATE" if cid and ids.count(cid) > 1 else ""
         print(f"{p.name:40} heard {text.strip()[:40]!r:44} -> {cid} ({how}){dup}")
     if "--apply" in sys.argv:
-        for p, _, cid, _ in rows:
-            if cid:
-                shutil.copy2(p, CLIPS / f"{cid}{p.suffix.lower()}")
         import run_all
+        only = set(sys.argv[sys.argv.index("--only") + 1].split(",")) if "--only" in sys.argv else None
+        latest = {cid: p for p, _, cid, _ in rows if cid and (only is None or cid in only)}  # a retake wins
+        for cid, p in latest.items():
+            out = CLIPS / f"{cid}.mp4"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(p), *run_all.size_args(run_all.track.probe(p)["duration"]),
+                            "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(out)], check=True)
+            print(f"{p.name} -> {out.name} ({out.stat().st_size / 1e6:.1f} MB)")
         import csv
         run_all.join_parts(CLIPS, [r["file"] for r in csv.DictReader(open(HERE / "answer_key.csv", encoding="utf-8"))])
-        print(f"copied {sum(1 for c in ids if c)} clips into {CLIPS}")
+        print(f"compressed {len(latest)} clip(s) into {CLIPS}; originals kept in {RAW}")
