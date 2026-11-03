@@ -30,6 +30,8 @@ HERE = Path(__file__).resolve().parent
 CONTAINER = "box"
 LABEL_NOUNS = ("shipping label", "label", "paper")  # tried in order until one finds the label
 VIDEO = (".mp4", ".mov")
+# both parts onto one 1080p landscape frame (a portrait part gets side bars), so mixed takes still join
+FIT = "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"
 
 
 def base_of(stem):
@@ -44,7 +46,7 @@ def join_parts(clips, rows):
         out = clips / f"{r}.mp4"
         if all(parts) and not out.exists():
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(parts[0]), "-i", str(parts[1]), "-filter_complex",
-                            "[0:v]setsar=1[a];[1:v]setsar=1[b];[a][b]concat=n=2:v=1:a=0", "-c:v", "libx264", "-crf", "20",
+                            f"[0:v]{FIT}[a];[1:v]{FIT}[b];[a][b]concat=n=2:v=1:a=0", "-c:v", "libx264", "-crf", "20",
                             "-pix_fmt", "yuv420p", str(out)], check=True)
             print(f"joined {parts[0].name} + {parts[1].name} -> {out.name}")
 
