@@ -11,6 +11,8 @@ media/
 gates/clips/
 gates/cache/
 gates/out/
+gates/photos/
+gates/listings/
 
 # Secrets
 .env
