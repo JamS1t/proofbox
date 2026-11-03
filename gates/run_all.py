@@ -61,36 +61,10 @@ def join_parts(clips, rows):
             print(f"joined {parts[0].name} + {parts[1].name} -> {out.name}")
 
 
-def drop_printed(t, nouns, share=0.9):
-    """Drop item tracks that sit inside a box in (nearly) every frame where a box is seen: pictures printed on
-    retail packaging (the router photo on its own box), not the item. Returns {noun: dropped ids}."""
-    boxes = {}
-    for f, _, x1, y1, x2, y2, _ in t["tracks"].get(CONTAINER, []):
-        boxes.setdefault(f, []).append((x1, y1, x2, y2))
-    dropped = {}
-    for n in nouns:
-        if n == CONTAINER:
-            continue
-        ids = {}
-        for r in t["tracks"].get(n, []):
-            ids.setdefault(r[1], []).append(r)
-        for oid, rows in ids.items():
-            with_box = [r for r in rows if r[0] in boxes]
-            inside = sum(any(b[0] <= (r[2] + r[4]) / 2 <= b[2] and b[1] <= (r[3] + r[5]) / 2 <= b[3]
-                             and (r[4] - r[2]) * (r[5] - r[3]) < (b[2] - b[0]) * (b[3] - b[1]) for b in boxes[r[0]])
-                         for r in with_box)
-            if len(with_box) >= len(rows) / 2 and inside >= share * len(with_box):
-                dropped.setdefault(n, []).append(oid)
-        if n in dropped:
-            t["tracks"][n] = [r for r in t["tracks"][n] if r[1] not in dropped[n]]
-    return dropped
-
-
 def facts_for(clip, row, kit, fps, out=HERE / "out", progress=lambda stage: None):
     items = [i for i in kit["items"] if i["status"] != "optional"]
     nouns = list(dict.fromkeys(i["noun"] for i in items))
     t = track.track(clip, [CONTAINER] + nouns + list(LABEL_NOUNS[:2]), fps)
-    t["printed_ids"] = drop_printed(t, nouns)
     label = ""
     for n in LABEL_NOUNS:
         rows = t["tracks"].get(n) or track.track(clip, [n], fps)["tracks"][n]
@@ -117,7 +91,7 @@ def facts_for(clip, row, kit, fps, out=HERE / "out", progress=lambda stage: None
     return {"duration": round(track.probe(clip)["duration"], 1), "size_mb": round(os.path.getsize(clip) / 1e6, 1),
             **c, "label_noun": label, "label_code": sp["label_code"], "label_readable": sp["label_readable"],
             "seal_visible": sp["seal_visible"], "sides_seen": sp["box_sides_seen"], "found_instead": sp["found_instead"],
-            "items": per_item, "printed_ids": t["printed_ids"], "spark": sp, "tracking": track.report(t, CONTAINER)}
+            "items": per_item, "spark": sp, "tracking": track.report(t, CONTAINER)}
 
 
 def core(expected):

@@ -7,6 +7,7 @@
    SAM 3.1 (image) tests each noun there; the best-confidence noun is kept (< 0.5 flagged) -> gates/kits.json.
 
     python gates/orders.py
+    python gates/orders.py recheck router gates/clips/G1.mp4 gates/clips/G1_b.mp4 [--items "ethernet (LAN) cable"]
 """
 import hashlib
 import io
@@ -121,6 +122,43 @@ def pick_nouns(check, files):
         i["flag"], i["photo"] = i["conf"] < MIN_CONF, Path(photo).name
 
 
+def clip_frames(clip, n):
+    """n JPEG frames (768 px) from the second half of a clip, where the items are out of the box."""
+    import subprocess
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                str(clip)], capture_output=True, text=True).stdout)
+    return [subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{dur * (0.5 + 0.5 * (i + 0.5) / n):.2f}", "-i", str(clip),
+                            "-frames:v", "1", "-vf", "scale=-2:768", "-f", "image2pipe", "-c:v", "mjpeg", "-"],
+                           capture_output=True, check=True).stdout for i in range(n)]
+
+
+def recheck(kit_name, clips, names=None, n=8):
+    """Re-test search words on real clips: an item's word must find it in EVERY clip (best frame >= 0.5).
+    Tested: flagged items, or `names`. Candidates are Spark's words; when none works in some clip, Spark proposes
+    3 more from that clip's frames. Kept: the word whose worst clip scores highest."""
+    from concurrent.futures import ThreadPoolExecutor
+    from common.meta_client import data_url
+    kits = json.loads((HERE / "kits.json").read_text(encoding="utf-8"))
+    frames = {Path(c).name: clip_frames(c, n) for c in clips}
+    pool = ThreadPoolExecutor(8)
+    score = lambda w: {c: round(max(pool.map(lambda f: sam_conf(f, w), fs)), 3) for c, fs in frames.items()}  # noqa: E731
+    for i in [i for i in kits[kit_name]["items"] if (i["name"] in names if names else i.get("flag"))]:
+        scores = {w: score(w) for w in i["tried"]}
+        for c, fs in frames.items():
+            if max(s[c] for s in scores.values()) < MIN_CONF:
+                prompt = NOUN_PROMPT.format(items=f"- {i['name']}") + "\nThe numbered images are frames from a real unboxing video."
+                content = [{"type": "input_text", "text": prompt}]
+                for k, f in enumerate(fs, 1):
+                    content += [{"type": "input_text", "text": f"Screenshot {k}:"},
+                                {"type": "input_image", "image_url": data_url(f)}]
+                for w in spark(content, NOUN_SCHEMA, "nouns")["items"][0]["nouns"][:3]:
+                    scores.setdefault(w.lower(), score(w.lower()))
+        i["noun"], worst = max(((w, min(s.values())) for w, s in scores.items()), key=lambda kv: kv[1])
+        i["conf"], i["flag"], i["video_check"] = worst, worst < MIN_CONF, {"clips": list(frames), "scores": scores}
+        print(f"{kit_name} / {i['name']}: {scores} -> {i['noun']} (worst clip {worst})")
+    (HERE / "kits.json").write_text(json.dumps(kits, indent=1, ensure_ascii=False), encoding="utf-8")
+
+
 def kit_from_truth(kit):
     """Truth kit + best SAM noun per required/gift item."""
     t = json.load(open(ORDERS / f"{kit}_truth.json", encoding="utf-8"))
@@ -166,12 +204,17 @@ def score(read, truth):
 
 def main():
     read, kits, rows = {}, {}, []
+    old = json.loads((HERE / "kits.json").read_text(encoding="utf-8")) if (HERE / "kits.json").exists() else {}
     for k in KITS:
         read[k] = read_order(k)
         truth = json.load(open(ORDERS / f"{k}_truth.json", encoding="utf-8"))
         s = score(read[k], truth)
         rows.append((k, s))
         kits[k] = kit_from_truth(k)
+        prev = {i["name"]: i for i in old.get(k, {}).get("items", []) if "video_check" in i}
+        for i in kits[k]["items"]:  # keep search words already re-checked on real video
+            if i["name"] in prev:
+                i.update({f: prev[i["name"]][f] for f in ("noun", "conf", "flag", "video_check")})
         print(k, s, [(i["name"][:24], i.get("noun"), i.get("conf")) for i in kits[k]["items"] if "noun" in i])
     (HERE / "orders_read.json").write_text(json.dumps(read, indent=1, ensure_ascii=False), encoding="utf-8")
     (HERE / "kits.json").write_text(json.dumps(kits, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -196,4 +239,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:2] == ["recheck"]:  # recheck router gates/clips/G1.mp4 gates/clips/G1_b.mp4 [--items "a,b"]
+        a = sys.argv[3:]
+        names = a[a.index("--items") + 1].split(",") if "--items" in a else None
+        recheck(sys.argv[2], [c for c in a[:a.index("--items")] if c] if names else a, names)
+    else:
+        main()

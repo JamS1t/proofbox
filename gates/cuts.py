@@ -17,6 +17,7 @@ import numpy as np
 # ponytail: fixed thresholds, calibrate on G3 (cut) and P7 (continuity) once filmed
 CUT_MIN = 15      # mean abs grey diff (0-255) a cut frame must exceed
 CUT_RATIO = 4     # ...and be this many times the surrounding motion
+CUT_EDGE = 2.5    # ...and this many times both neighbouring frames: a cut is one frame, camera motion ramps
 JUMP_FRAC = 0.25  # object moves > this share of the frame diagonal in one SAM frame
 GAP_S = 4         # out of view this long or longer = continuity warning
 
@@ -45,14 +46,16 @@ def hard_cuts(d, ts):
     for i in range(1, len(d)):
         around = np.concatenate([d[max(1, i - 10):i], d[i + 1:i + 11]])
         base = float(np.median(around)) if len(around) else 0.0
-        if d[i] > CUT_MIN and d[i] > CUT_RATIO * max(base, 1.0):
+        near = max(d[i - 1], d[i + 1] if i + 1 < len(d) else 0.0)
+        if d[i] > CUT_MIN and d[i] > CUT_RATIO * max(base, 1.0) and d[i] > CUT_EDGE * max(near, 1.0):
             out.append(round(ts[i], 1))
     return out
 
 
-def jump_cuts(tracks, fps, w, h, skip=()):
-    """SAM frames where objects of 2+ different concepts jump together. Jumps within one concept are usually
-    identical items swapping IDs, so they are ignored."""
+def jump_cuts(tracks, fps, w, h, skip=(), still=None):
+    """SAM frames where objects of 2+ different concepts jump together while the camera is otherwise still
+    (still(t) is True). Jumps within one concept are usually identical items swapping IDs, and jumps while the
+    whole picture moves are a fast camera swing, so both are ignored."""
     diag, at = (w * w + h * h) ** 0.5, {}
     for c, rows in tracks.items():
         if c in skip:
@@ -64,7 +67,8 @@ def jump_cuts(tracks, fps, w, h, skip=()):
             if p and f - p[0] == 1 and ((cx - p[1]) ** 2 + (cy - p[2]) ** 2) ** 0.5 > JUMP_FRAC * diag:
                 at.setdefault(f, set()).add((c, oid))
             last[oid] = (f, cx, cy)
-    return [round(f / fps, 1) for f, objs in sorted(at.items()) if len({c for c, _ in objs}) >= 2]
+    return [round(f / fps, 1) for f, objs in sorted(at.items())
+            if len({c for c, _ in objs}) >= 2 and (still is None or still(f / fps))]
 
 
 def continuity(tracks, fps, concepts, cuts):
@@ -80,8 +84,14 @@ def continuity(tracks, fps, concepts, cuts):
 
 
 def cuts(t, src, concepts, skip=()):
-    hc = hard_cuts(*frame_diffs(src))
-    jc = jump_cuts(t["tracks"], t["fps"], t["w"], t["h"], skip)
+    d, ts = frame_diffs(src)
+    hc = hard_cuts(d, ts)
+    rate = len(ts) / ts[-1] if len(ts) > 1 and ts[-1] else 30
+
+    def still(sec):  # mean motion over the SAM frame step around `sec` is low
+        a, b = int((sec - 1 / t["fps"]) * rate), int(sec * rate) + 1
+        return float(np.mean(d[max(0, a):max(a + 1, b)])) < CUT_MIN
+    jc = jump_cuts(t["tracks"], t["fps"], t["w"], t["h"], skip, still)
     return {"hard_cuts": hc, "jump_cuts": jc, "continuity": continuity(t["tracks"], t["fps"], concepts, hc + jc)}
 
 

@@ -14,7 +14,7 @@ import cv2
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common.meta_client import SPARK_MODEL, client, data_url  # noqa: E402
 from cache import cached, key  # noqa: E402
-from track import biggest, union  # noqa: E402
+from track import biggest  # noqa: E402
 
 # ponytail: Spark price isn't in our notes; only the spend estimate uses these. Override per 1M tokens.
 USD_IN = float(os.environ.get("SPARK_USD_IN", "1.00")) / 1e6
@@ -48,7 +48,9 @@ Images follow, each group introduced by a text line. Judge only from the images.
 Return one entry in `items` per KIT ITEM, in the order given, with `name` exactly as given.
 - item_type: what the crops actually show. same_kind: the crops show this kit item. Another variant or rating
   is still same_kind (that is a spec mismatch); a different product is not (a relay module is not an Orange Pi,
-  a board game is not a router). No crops -> same_kind=false.
+  a board game is not a router). Crops come from separate tracked objects; a picture of the item printed on
+  packaging (the router photo on its own box) is NOT the item. same_kind=true only if at least one crop shows
+  the physical item itself. No crops -> same_kind=false.
 - printed_text: text printed on the item itself that you can read in the crops (model, GB, V/A, nm); '' if none.
 - spec_check: printed_text vs the order's specs. match; mismatch = clear conflict (e.g. OUTPUT 9V 0.6A when the
   order is a 12V 3A adapter); not_verifiable = the spec is not printed or not readable. spec_note: short reason.
@@ -58,7 +60,8 @@ Return one entry in `items` per KIT ITEM, in the order given, with `name` exactl
 label_code: the large 6-character code on the shipping label exactly as printed ('' if no label is readable).
 label_readable: a label is visible and its code can be read.
 found_instead: when kit items have no crops, name what the WHOLE FRAMES AFTER OPENING show; '' otherwise.
-box_sides_seen: distinct outer sides (0-6) of the closed box across the before-opening frames, 0 if none given.
+box_sides_seen: distinct outer sides (0-6) shown while the box is still CLOSED, across the box frames from the
+first half of the video (ignore frames where it is already open); 0 if none given.
 seal_visible: the last frames show the package closed and sealed with tape, false if none given.
 confidence: 0-1."""
 
@@ -86,22 +89,39 @@ def opened_at(t, items):
     return min((min(r[0] for r in t["tracks"][c]) for c in items if t["tracks"].get(c)), default=t["frames"] // 2)
 
 
-def gather(t, src, concepts, items, k=3, n_box=6, n_end=3, n_after=3):
-    """One pass over the video. Per concept (items: box around all copies, others: biggest box): sharpest crop
-    (Laplacian variance) in each of k equal slices of its visible frames. Plus closed-box frames before any item
-    appears, the last frames, and whole frames after opening."""
-    per = {c: (union if c in items else biggest)(t["tracks"].get(c, [])) for c in concepts}
-    slot = {(c, f): i * k // len(b) for c, b in per.items() for i, f in enumerate(sorted(b))}
+def split(boxes, parts):
+    """frame->box dict cut into `parts` consecutive time slices."""
+    fs = sorted(boxes)
+    return [s for s in ({f: boxes[f] for f in fs[i * len(fs) // parts:(i + 1) * len(fs) // parts]}
+                        for i in range(parts)) if s]
+
+
+def slots_for(rows, k=3):
+    """Crop slots for a kit item: one per tracked object (most seen first, up to k), so a picture printed on
+    the packaging and the real item each get their own crop; spare slots split the main object's time."""
+    ids = {}
+    for f, oid, x1, y1, x2, y2, _ in rows:
+        ids.setdefault(oid, {})[f] = (x1, y1, x2, y2)
+    top = sorted(ids.values(), key=len, reverse=True)[:k]
+    return split(top[0], k - len(top) + 1) + top[1:] if top else []
+
+
+def gather(t, src, concepts, items, k=3, n_box=8, n_end=3, n_after=3):
+    """One pass over the video. Sharpest crop (Laplacian variance) per slot: kit items get one slot per tracked
+    object, other concepts (the label) k time slices of their biggest box. Plus box frames from the first half
+    of the clip (for the sides), the last frames, and whole frames after opening."""
+    slots = {c: slots_for(t["tracks"].get(c, []), k) if c in items else split(biggest(t["tracks"].get(c, [])), k)
+             for c in concepts}
     n, fps = t["frames"], t["fps"]
     opened = opened_at(t, items)
-    closed = [f for f in t["box_frames"] if f < opened] or list(range(opened))
-    pre = sorted({closed[i * len(closed) // n_box] for i in range(n_box)}) if closed else []
+    early = [f for f in t["box_frames"] if f < n // 2] or list(range(n // 2))
+    pre = sorted({early[i * len(early) // n_box] for i in range(n_box)}) if early else []
     end = sorted({max(0, n - 1 - i * fps) for i in range(n_end)})
     after = sorted({opened + (n - opened) * (i + 1) // (n_after + 1) for i in range(n_after)})
     cap, scale, timed = source(t, src)
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30
     best, full, done, i = {}, {}, set(), -1
-    need = set(slot_f for (_, slot_f) in slot) | set(pre) | set(end) | set(after) | {n - 1}
+    need = {f for ss in slots.values() for s in ss for f in s} | set(pre) | set(end) | set(after) | {n - 1}
     while cap.grab():  # decode every frame, but only convert the ones we use
         i += 1
         ms = cap.get(cv2.CAP_PROP_POS_MSEC) if timed else 0
@@ -112,21 +132,21 @@ def gather(t, src, concepts, items, k=3, n_box=6, n_end=3, n_after=3):
         if not ok:
             continue
         done.add(f)
-        for c, boxes in per.items():
+        for c, j, boxes in ((c, j, s) for c, ss in slots.items() for j, s in enumerate(ss)):
             if f in boxes:
                 x1, y1, x2, y2 = (int(v * scale) for v in boxes[f])
                 pw, ph = (x2 - x1) // 10, (y2 - y1) // 10
                 crop = fr[max(0, y1 - ph):y2 + ph, max(0, x1 - pw):x2 + pw]
                 if crop.size:
                     sharp = cv2.Laplacian(cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()
-                    s = (c, slot[(c, f)])
+                    s = (c, j)
                     if s not in best or sharp > best[s][0]:
                         best[s] = (sharp, jpg(crop, 1024))
         if f in pre or f in end or f in after or f >= n - 1:
             full[f] = jpg(fr, 768)
     cap.release()
     end = [x if x in full else max(full, default=x) for x in end]  # frame count can be off by one
-    crops = {c: [best[(c, j)][1] for j in range(k) if (c, j) in best] for c in concepts}
+    crops = {c: [best[(c, j)][1] for j in range(len(slots[c])) if (c, j) in best] for c in concepts}
     pick = lambda xs: [full[x] for x in dict.fromkeys(xs) if x in full]  # noqa: E731
     return crops, pick(pre), pick(end), pick(after)
 
@@ -163,7 +183,7 @@ def compare(t, src, mode, kit, items, label, save_dir=None):
         c = crops[i["noun"]]
         add(f"KIT ITEM '{i['name']}' crops from the video:" if c else f"KIT ITEM '{i['name']}': not found in the video, no crops.", c)
     add("SHIPPING LABEL crops:" if crops[label] else "SHIPPING LABEL: not found by the tracker.", crops[label])
-    add("CLOSED BOX before opening, frames in time order:" if mode == "buyer" else "LAST FRAMES of the packing video:",
+    add("BOX in the first half of the video, frames in time order:" if mode == "buyer" else "LAST FRAMES of the packing video:",
         pre if mode == "buyer" else end)
     if not any(crops[i["noun"]] for i in items if i["status"] == "required"):
         add("WHOLE FRAMES AFTER OPENING (no kit item was found):", after)
