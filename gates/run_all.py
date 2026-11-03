@@ -49,7 +49,7 @@ def join_parts(clips, rows):
             print(f"joined {parts[0].name} + {parts[1].name} -> {out.name}")
 
 
-def facts_for(clip, row, kit, fps):
+def facts_for(clip, row, kit, fps, out=HERE / "out", progress=lambda stage: None):
     items = [i for i in kit["items"] if i["status"] != "optional"]
     nouns = list(dict.fromkeys(i["noun"] for i in items))
     t = track.track(clip, [CONTAINER] + nouns, fps)
@@ -60,9 +60,11 @@ def facts_for(clip, row, kit, fps):
             t["tracks"][n], label = rows, n
             break
     t["box_frames"] = sorted({r[0] for r in t["tracks"][CONTAINER]})
-    (HERE / "out" / f"{Path(clip).stem}_tracks.json").write_text(json.dumps(t))
+    Path(out).mkdir(parents=True, exist_ok=True)
+    (Path(out) / f"{Path(clip).stem}_tracks.json").write_text(json.dumps(t))
+    progress("Checking rules")
     c = cuts.cuts(t, clip, [CONTAINER] + nouns, skip=LABEL_NOUNS)
-    sp = compare.compare(t, clip, row["mode"], kit, items, label, save_dir=HERE / "out" / Path(clip).stem)
+    sp = compare.compare(t, clip, row["mode"], kit, items, label, save_dir=Path(out) / Path(clip).stem)
     seen = lambda k: len({r[0] for r in t["tracks"].get(k, [])}) / fps  # noqa: E731
     at_once = lambda k: max(Counter(r[0] for r in t["tracks"].get(k, [])).values(), default=0)  # noqa: E731
     by_name = {i["name"]: i for i in sp["items"]}

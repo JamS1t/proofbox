@@ -104,6 +104,23 @@ def sam_conf(img, noun):
     return max((b["conf"] or 0 for b in res["boxes"]), default=0.0)
 
 
+def pick_nouns(check, files):
+    """Spark proposes 3 nouns per item; SAM image-tests them on the screenshot Spark picked; best one kept.
+    Without screenshots the first noun is used untested."""
+    lines = "\n".join(f"- {i['name']}" for i in check)
+    nouns = spark(content(NOUN_PROMPT.format(items=lines), files, numbered=bool(files)), NOUN_SCHEMA, "nouns")["items"]
+    for i, n in zip(check, nouns):
+        words = [w.lower() for w in n["nouns"][:3]] or [i["name"].lower()]
+        if not files:
+            i["noun"], i["conf"], i["flag"], i["tried"] = words[0], None, False, {}
+            continue
+        photo = files[min(max(n["screenshot"], 1), len(files)) - 1]
+        img = jpeg(photo)
+        i["tried"] = {w: round(sam_conf(img, w), 3) for w in words}
+        i["noun"], i["conf"] = max(i["tried"].items(), key=lambda kv: kv[1])
+        i["flag"], i["photo"] = i["conf"] < MIN_CONF, Path(photo).name
+
+
 def kit_from_truth(kit):
     """Truth kit + best SAM noun per required/gift item."""
     t = json.load(open(ORDERS / f"{kit}_truth.json", encoding="utf-8"))
@@ -112,14 +129,7 @@ def kit_from_truth(kit):
              for p in t["package_includes"] if p.get("included", True)]
     check = [i for i in items if i["status"] != "optional"]
     files = [p for p in screenshots(kit) if "_listing" in p.name or "_title" in p.name] or screenshots(kit)
-    lines = "\n".join(f"- {i['name']}" for i in check)
-    nouns = spark(content(NOUN_PROMPT.format(items=lines), files, numbered=True), NOUN_SCHEMA, "nouns")["items"]
-    for i, n in zip(check, nouns):
-        img = jpeg(files[min(max(n["screenshot"], 1), len(files)) - 1])
-        i["tried"] = {w.lower(): round(sam_conf(img, w.lower()), 3) for w in n["nouns"][:3]}
-        i["noun"], i["conf"] = max(i["tried"].items(), key=lambda kv: kv[1])
-        i["flag"] = i["conf"] < MIN_CONF
-        i["photo"] = files[min(max(n["screenshot"], 1), len(files)) - 1].name
+    pick_nouns(check, files)
     return {"order_id": t["order_id"], "label": t["label_text"], "product": t["product_title"], "items": items,
             "context": {k: t[k] for k in CONTEXT if k in t}, "conflicts": t.get("listing_conflicts", [])}
 

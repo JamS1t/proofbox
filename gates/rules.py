@@ -40,7 +40,7 @@ def verdict(mode, items, label, f):
     if f["size_mb"] > MAX_MB:
         fails.append("rule size")
     code = "".join(ch for ch in f["label_code"].upper() if ch.isalnum())
-    if code and code != label:
+    if code and label and code != label:
         fails.append("label mismatch")
         notes.append(f"label reads {code}, order needs {label}")
     elif not code:

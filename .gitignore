@@ -26,3 +26,6 @@ gates/print/pages/
 # Caches
 __pycache__/
 *.pyc
+app/uploads/
+app/results/
+app/samples/

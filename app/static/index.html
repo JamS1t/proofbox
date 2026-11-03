@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ProofBox</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>ProofBox</h1>
+    <p>Checks a packing or unboxing video against the order and the marketplace's evidence rules.</p>
+  </header>
+
+  <form id="form">
+    <fieldset>
+      <legend>Video <small>up to 60 s and 30 MB</small></legend>
+      <input type="file" name="video" accept="video/*" required>
+    </fieldset>
+    <fieldset>
+      <legend>Who recorded it</legend>
+      <label><input type="radio" name="mode" value="seller" required> Seller packing</label>
+      <label><input type="radio" name="mode" value="buyer"> Buyer unboxing</label>
+    </fieldset>
+    <fieldset>
+      <legend>Marketplace</legend>
+      <select name="marketplace"><option value="shopee">Marketplace (Shopee rules)</option></select>
+    </fieldset>
+    <fieldset>
+      <legend>Order <small>screenshots of the order and listing, or type it</small></legend>
+      <input type="file" name="order_images" accept="image/*" multiple>
+      <textarea name="order_text" placeholder="Product, variant, quantity, Order ID, what's in the box"></textarea>
+    </fieldset>
+    <button type="submit">Check video</button>
+  </form>
+
+  <section id="samples">
+    <h3>Try a sample <small>cached results, nothing is charged</small></h3>
+    <div id="sample-list"><small>No samples yet.</small></div>
+  </section>
+
+  <ol id="progress" hidden><li>Reading order</li><li>Tracking items</li><li>Checking rules</li><li>Verdict</li></ol>
+  <p id="error" hidden></p>
+  <div id="result" hidden></div>
+  <p id="download" hidden><a id="evidence" class="button" href="#">Download evidence pack</a></p>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
