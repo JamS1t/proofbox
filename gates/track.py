@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -94,11 +95,15 @@ def track(src, concepts, fps=FPS):
                 file=(v.name, v.read_bytes(), "video/mp4"), purpose="user_data").id}, 0))["id"]
         return up["id"]
 
-    tracks = {}
-    for c in concepts:
-        res = cached("sam", key(v.stem, c), max(info["frames"], 50) * USD_PER_FRAME,
-                     lambda c=c: sam_video(file_id(), c, info["frames"]))
-        tracks[c] = parse(res["text"])
+    if any(not (DIR / "sam" / f"{key(v.stem, c)}.json.gz").exists() for c in concepts):
+        file_id()  # upload once, before the parallel requests
+
+    def one(c):
+        return parse(cached("sam", key(v.stem, c), max(info["frames"], 50) * USD_PER_FRAME,
+                            lambda: sam_video(file_id(), c, info["frames"]))["text"])
+
+    with ThreadPoolExecutor(max_workers=8) as ex:  # one request per concept, all at once
+        tracks = dict(zip(concepts, ex.map(one, concepts)))
     t = {"video": str(v), "fps": fps, **info, "tracks": tracks}
     OUT.mkdir(exist_ok=True)
     (OUT / f"{Path(src).stem}_tracks.json").write_text(json.dumps(t))
