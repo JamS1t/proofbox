@@ -114,6 +114,15 @@ def biggest(rows):
     return best
 
 
+def union(rows):
+    """frame -> one box around every detection of this concept (shows all copies, so Spark can count)."""
+    u = {}
+    for f, _, x1, y1, x2, y2, _ in rows:
+        a = u.get(f, (x1, y1, x2, y2))
+        u[f] = (min(a[0], x1), min(a[1], y1), max(a[2], x2), max(a[3], y2))
+    return u
+
+
 def box_events(t, container="box", skip=("label", "shipping label"), hold=5):
     """Item centre inside the biggest container box. A change must hold `hold` frames to count."""
     boxes, events = biggest(t["tracks"].get(container, [])), []

@@ -1,21 +1,21 @@
 file,mode,order,actual,expected
-G1,buyer,router+charger,router+charger,PASS
-G2,buyer,router+charger,scrabble board,FAIL wrong item
-G3,buyer,router+charger,router+charger,FAIL cut
-U1,buyer,multitester+probes,multitester+probes,PASS
-U2,buyer,shirt A,shirt B,FAIL mismatch
-U3,buyer,multitester+probes,multitester,FAIL missing item
-U4,buyer,orange pi+charger,usb drive,FAIL wrong item
-U5,buyer,shirt A,shirt A,FAIL rule sides
-U6,buyer,orange pi+charger,orange pi+charger,FAIL rule label
-U7,buyer,router+charger,router,FAIL missing item
-U8,buyer,multitester,multitester (no battery),FLAG power test no display
-P1,seller,orange pi+charger,orange pi+charger,PASS
-P2,seller,orange pi+charger,orange pi,FAIL missing item
-P3,seller,shirt A,shirt B,FAIL mismatch
-P4,seller,2x shirt A,1x shirt A,FAIL quantity
-P5,seller,usb drive+charger,charger,FAIL missing item
-P6,seller,router,router,FAIL rule seal
-P7,seller,orange pi+charger,orange pi+charger,WARN continuity
-P8,seller,router,router,FAIL rule length
-P9,seller,multitester,multitester (powered on),PASS tested working
+G1,buyer,router,router kit full,PASS
+G2,buyer,router,Scrabble board inside,FAIL wrong item
+G3,buyer,router,router kit full; recorded as G3a + G3b,FAIL cut
+U1,buyer,multitester,multitester kit full; switched on,PASS
+U2,buyer,router,router kit; its adapter swapped for the 12V 3A adapter,FAIL mismatch (spec)
+U3,buyer,multitester,multitester kit; probes left out,FAIL missing item
+U4,buyer,orangepi,10A relay module inside,FAIL wrong item
+U5,buyer,usb,usb kit full; opened without showing the sides,FAIL rule sides
+U6,buyer,orangepi,orangepi kit full; label covered by hand,FAIL rule label
+U7,buyer,router,router kit; adapter left out,FAIL missing item
+U8,buyer,multitester,multitester kit; battery removed; blank screen,FLAG power test no display
+P1,seller,orangepi,orangepi kit full; sealed,PASS
+P2,seller,uvlight,uvlight kit; USB cable left out,FAIL missing item
+P3,seller,adapter,router's adapter packed instead of the 12V 3A,FAIL mismatch (spec)
+P4,seller,stand,only 1 of the pair packed,FAIL quantity
+P5,seller,usb,usb kit full; sealed,PASS (tiny item)
+P6,seller,router,router kit full; never sealed,FAIL rule seal
+P7,seller,orangepi,orangepi kit full; board leaves the frame 5 s before going in,WARN continuity
+P8,seller,router,router kit full; runs past 60 s,FAIL rule length
+P9,seller,multitester,multitester powered on with a reading; then packed,PASS tested working

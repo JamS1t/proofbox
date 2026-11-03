@@ -13,6 +13,7 @@ gates/cache/
 gates/out/
 gates/photos/
 gates/listings/
+gates/orders/
 
 # Secrets
 .env
